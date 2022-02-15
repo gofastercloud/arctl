@@ -1,4 +1,5 @@
 use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_apprunner::model::SourceConfiguration;
 use aws_sdk_apprunner::{Client, Error};
 
 use clap::Parser;
@@ -13,7 +14,7 @@ use std::process;
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// List App Runner services
-    #[clap(short, long)]
+    #[clap(short, long = "list-services")]
     list: bool,
 
     /// List supported AWS Regions for App Runner
@@ -24,13 +25,21 @@ struct Args {
     #[clap(short, long)]
     desc: bool,
 
+    /// Create App Runner service
+    #[clap(short, long)]
+    create: bool,
+
     /// Delete App Runner service
     #[clap(long)]
     delete: bool,
 
-    /// AppRunner service name
+    /// App Runner service name
     #[clap(short, long)]
     name: Option<String>,
+
+    /// App Runner Public ECR Repository
+    #[clap(short, long)]
+    repo: Option<String>,
 }
 
 #[tokio::main]
@@ -114,7 +123,7 @@ async fn main() -> Result<(), Error> {
     }
 
     if supported && args.desc {
-        if args.name == None {
+        if args.name.as_ref() == None {
             println!("You must provide a Service Name");
             process::exit(3)
         }
@@ -176,9 +185,60 @@ async fn main() -> Result<(), Error> {
         }
         println!(
             "Service {} not found in Region {}",
-            args.name.unwrap(),
+            args.name.as_ref().unwrap(),
             configured_region
         )
+    }
+
+    if supported && args.delete {
+        if args.name.as_ref() == None {
+            println!("You must provide a Service Name");
+            process::exit(3)
+        }
+        for service in services {
+            if args.name.as_ref().unwrap() == service.service_name().unwrap() {
+                let req = client
+                    .delete_service()
+                    .service_arn(service.service_arn().unwrap());
+                req.send().await?;
+
+                println!("Deleting Service: args.name");
+
+                process::exit(0);
+            }
+        }
+        println!(
+            "Service {} not found in Region {}",
+            args.name.as_ref().unwrap(),
+            configured_region
+        )
+    }
+
+    if supported && args.create {
+        if args.name.as_ref() == None {
+            println!("You must provide a Service Name");
+            process::exit(3);
+        } else if args.repo.as_ref() == None {
+            println!("You must provide a URL for a valid ECR Public Repository");
+            process::exit(4);
+        } else if !args.repo.as_ref().unwrap().starts_with("public.ecr.aws/") {
+            println!("You must provide a URL for a valid ECR Public Repository");
+            process::exit(4);
+        } else {
+            println!(
+                "Creating service {} in region {} from ECR Public Repo {}",
+                args.name.as_ref().unwrap(),
+                configured_region,
+                args.repo.as_ref().unwrap()
+            );
+
+            let source_configuration: SourceConfiguration = SourceConfiguration { image_repository: { image_identifier: args.repo.as_ref().unwrap(), image_repository_type}};
+
+            let req = client
+                .create_service()
+                .service_name(args.name.as_ref().unwrap())
+                .source_configuration(source_configuration);
+        }
     }
 
     Ok(())
