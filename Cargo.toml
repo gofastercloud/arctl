@@ -1,0 +1,16 @@
+[package]
+name = "arctl"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dave Barton <brtdvi@amazon.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aws-config = "0.6"
+aws-sdk-apprunner = "0.6"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "3.0", features = ["derive"] }
+regex = "1.5"
+chrono = "0.4"
+chrono-tz = "0.4"
