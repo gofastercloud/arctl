@@ -6,7 +6,6 @@ use clap::Parser;
 use regex::Regex;
 
 use chrono::prelude::*;
-use chrono_tz::{Tz, UTC};
 
 use std::process;
 
@@ -137,23 +136,40 @@ async fn main() -> Result<(), Error> {
                     "Service ARN: {}",
                     service_details.service_arn.as_ref().unwrap()
                 );
-                println!(
-                    "Service URL: https://{}",
-                    service_details.service_url.as_ref().unwrap()
-                );
 
-                let timestamp = service_details
-                    .created_at
+                let service_port = service_details
+                    .source_configuration
                     .as_ref()
                     .unwrap()
-                    .to_millis()
+                    .image_repository
+                    .as_ref()
+                    .unwrap()
+                    .image_configuration
+                    .as_ref()
+                    .unwrap()
+                    .port
+                    .as_ref()
                     .unwrap();
 
-                let naive = NaiveDateTime::from_timestamp(timestamp, 0);
-                //let datetime: DateTime<Tz> = DateTime::from_utc(naive, chrono_tz::UTC);
-                //let newdate = datetime.format("%Y-%m-%d %H:%M:%S");
+                println!(
+                    "Service URL: https://{}:{}",
+                    service_details.service_url.as_ref().unwrap(),
+                    service_port
+                );
 
-                println!("Service created at: {:?}", naive);
+                let service_resources = service_details.instance_configuration.as_ref().unwrap();
+
+                println!(
+                    "System Resources: {} CPUs / {}MB RAM",
+                    service_resources.cpu.as_ref().unwrap().parse().unwrap_or(0) / 1024,
+                    service_resources.memory.as_ref().unwrap()
+                );
+
+                let timestamp = service_details.created_at.as_ref().unwrap().secs();
+                let datetime =
+                    DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+                let newdate = datetime.format("%Y-%m-%d %H:%M:%S");
+                println!("Service created at: {} UTC", newdate);
 
                 process::exit(0);
             }
